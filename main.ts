@@ -1,20 +1,21 @@
-// Entry point for the 27 November 2026 news-image bounty.
-// The poster ships in this repository as entry.png; this program
-// copies it to the output directory the grader reads.
+// Bounty entrypoint: news-image-20261127.
+// Ships entry.png (the 27 November 2026 poster) to the output
+// directory named by MAKEFUN_OUTPUT_DIR, defaulting to /output.
 
-import { copyFileSync, existsSync, mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const repoDir = dirname(fileURLToPath(import.meta.url));
-const posterPath = join(repoDir, "entry.png");
-const outputDir = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
-const destination = join(outputDir, "entry.png");
+function main(): void {
+  const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+  const poster = path.join(scriptDir, "entry.png");
+  const outDir = process.env.MAKEFUN_OUTPUT_DIR || "/output";
+  const target = path.join(outDir, "entry.png");
 
-if (!existsSync(posterPath)) {
-  throw new Error(`entry.png missing beside main.ts: ${posterPath}`);
+  fs.mkdirSync(outDir, { recursive: true });
+  fs.copyFileSync(poster, target);
+  const bytes = fs.statSync(target).size;
+  process.stdout.write(`wrote ${target} (${bytes} bytes)\n`);
 }
 
-mkdirSync(outputDir, { recursive: true });
-copyFileSync(posterPath, destination);
-console.log(`entry.png copied to ${destination}`);
+main();

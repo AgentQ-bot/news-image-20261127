@@ -1,176 +1,195 @@
 #!/usr/bin/env python3
-"""Render a one-page poster summing up Friday 27 November 2026.
+"""Build the 27 November 2026 one-image news poster with Pillow.
 
-Pure Pillow build: a light masthead naming the day, six numbered
-story cards in a 2x3 grid, and a footer strip. Writes a 1024x1024
-PNG to entry.png in the repository root.
+Layout: red top rule, centred masthead naming the day, six story
+cards in two columns, navy footer. The canvas is 1024x1024 and the
+result lands beside this script's parent directory as entry.png.
 """
 
-from pathlib import Path
+import os
 
 from PIL import Image, ImageDraw, ImageFont
 
-ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "entry.png"
+HERE = os.path.dirname(os.path.abspath(__file__))
+DEST = os.path.join(os.path.dirname(HERE), "entry.png")
 
-SIZE = 1024
-MARGIN = 30
-GUTTER = 18
-HEADER_H = 176
-FOOTER_H = 58
+CANVAS = 1024
+EDGE = 30
+SPACE = 18
+HEAD = 176
+FOOT = 58
 
-PAPER = (250, 248, 243)
-CARD_BG = (255, 255, 255)
-INK = (26, 30, 40)
-BODY = (54, 60, 72)
-RULE = (216, 210, 198)
-NAVY = (16, 34, 66)
-RED = (178, 34, 52)
+COLOURS = {
+    "paper": (250, 248, 243),
+    "card": (255, 255, 255),
+    "ink": (26, 30, 40),
+    "body": (54, 60, 72),
+    "edge": (216, 210, 198),
+    "navy": (16, 34, 66),
+    "red": (178, 34, 52),
+    "pale": (225, 231, 242),
+}
 
-SERIF_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
-SANS = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-SANS_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+FONT_FILES = {
+    "serif": "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
+    "sans": "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "sansb": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+}
 
-STORIES = [
-    (
-        "KOREAN PENINSULA",
-        (178, 34, 52),
-        "Six North Korean fishermen sent home",
-        "South Korea returned six North Korean fishermen by sea on "
-        "Friday after their boat was found adrift near Ulleung Island "
-        "on 3 November. A seventh man chose to stay in the South.",
-    ),
-    (
-        "TAIWAN STRAIT",
-        (31, 95, 168),
-        "China tests floating-bridge landing tactic",
-        "Satellite images show China rehearsing a new amphibious "
-        "landing method in Fujian, linking civilian vessels into an "
-        "800-metre floating bridge. The drill, 280 km from Taiwan, "
-        "was still under way on Friday.",
-    ),
-    (
-        "NEW ZEALAND",
-        (38, 110, 84),
-        "Final count leaves Luxon one seat short",
-        "Official results gave the National-led coalition 65 of 130 "
-        "seats, one short of a majority. Prime Minister Christopher "
-        "Luxon must now win support from the centrist Opportunity "
-        "Party to govern.",
-    ),
-    (
-        "AUSTRALIA",
-        (160, 84, 24),
-        "Law reserves 20% of LNG for home market",
-        "Parliament passed a gas reservation law on Friday requiring "
-        "LNG exporters to set aside up to 20% of production for "
-        "domestic use from 2028, aiming to cut local prices. "
-        "Western Australia is exempt.",
-    ),
-    (
-        "JAPAN",
-        (104, 62, 140),
-        "Tokyo inflation hits 16-month high of 2.9%",
-        "Core consumer prices in Tokyo rose 2.9% in November, the "
-        "fastest pace since July 2025. The data strengthen the case "
-        "for the Bank of Japan to raise interest rates in December.",
-    ),
-    (
-        "EUROPEAN UNION",
-        (20, 110, 130),
-        "EU leaders end budget talks with no deal",
-        "After more than 12 hours of talks, EU leaders failed to "
-        "agree the 2028-2034 budget or a 45 billion euro loan for "
-        "Ukraine. Macron set a year-end deadline; leaders meet "
-        "again on 17-18 December.",
-    ),
+CARDS = [
+    {
+        "tag": "KOREAN PENINSULA",
+        "tone": (178, 34, 52),
+        "title": "Six North Korean fishermen sent home",
+        "text": (
+            "South Korea returned six North Korean fishermen by sea on "
+            "Friday after their boat was found adrift near Ulleung "
+            "Island on 3 November. A seventh man chose to stay in "
+            "the South."
+        ),
+    },
+    {
+        "tag": "TAIWAN STRAIT",
+        "tone": (31, 95, 168),
+        "title": "China tests floating-bridge landing tactic",
+        "text": (
+            "Satellite images show China rehearsing a new amphibious "
+            "landing method in Fujian, linking civilian vessels into "
+            "an 800-metre floating bridge. The drill, 280 km from "
+            "Taiwan, was still under way on Friday."
+        ),
+    },
+    {
+        "tag": "NEW ZEALAND",
+        "tone": (38, 110, 84),
+        "title": "Final count leaves Luxon one seat short",
+        "text": (
+            "Official results gave the National-led coalition 65 of "
+            "130 seats, one short of a majority. Prime Minister "
+            "Christopher Luxon must now win support from the centrist "
+            "Opportunity Party to govern."
+        ),
+    },
+    {
+        "tag": "AUSTRALIA",
+        "tone": (160, 84, 24),
+        "title": "Law reserves 20% of LNG for home market",
+        "text": (
+            "Parliament passed a gas reservation law on Friday "
+            "requiring LNG exporters to set aside up to 20% of "
+            "production for domestic use from 2028, aiming to cut "
+            "local prices. Western Australia is exempt."
+        ),
+    },
+    {
+        "tag": "JAPAN",
+        "tone": (104, 62, 140),
+        "title": "Tokyo inflation hits 16-month high of 2.9%",
+        "text": (
+            "Core consumer prices in Tokyo rose 2.9% in November, "
+            "the fastest pace since July 2025. The data strengthen "
+            "the case for the Bank of Japan to raise interest rates "
+            "in December."
+        ),
+    },
+    {
+        "tag": "EUROPEAN UNION",
+        "tone": (20, 110, 130),
+        "title": "EU leaders end budget talks with no deal",
+        "text": (
+            "After more than 12 hours of talks, EU leaders failed "
+            "to agree the 2028-2034 budget or a 45 billion euro "
+            "loan for Ukraine. Macron set a year-end deadline; "
+            "leaders meet again on 17-18 December."
+        ),
+    },
 ]
 
 
-def load_font(path, size):
-    return ImageFont.truetype(path, size)
+def pick(kind, size):
+    return ImageFont.truetype(FONT_FILES[kind], size)
 
 
-def wrap_text(draw, text, fnt, max_width):
-    lines = []
-    line = ""
-    for word in text.split():
-        candidate = word if not line else line + " " + word
-        if draw.textlength(candidate, font=fnt) <= max_width:
-            line = candidate
+def split_lines(canvas_draw, wording, face, limit):
+    rows = []
+    row = ""
+    for token in wording.split(" "):
+        trial = token if row == "" else row + " " + token
+        if canvas_draw.textlength(trial, font=face) > limit:
+            rows.append(row)
+            row = token
         else:
-            lines.append(line)
-            line = word
-    if line:
-        lines.append(line)
-    return lines
+            row = trial
+    rows.append(row)
+    return rows
 
 
-def centred(draw, text, fnt, y, fill):
-    width = draw.textlength(text, font=fnt)
-    draw.text(((SIZE - width) / 2, y), text, font=fnt, fill=fill)
+def middle(canvas_draw, wording, face, ypos, colour):
+    span = canvas_draw.textlength(wording, font=face)
+    canvas_draw.text(((CANVAS - span) / 2, ypos), wording,
+                     font=face, fill=colour)
 
 
-def draw_header(draw):
-    draw.rectangle([0, 0, SIZE, 10], fill=RED)
-    kicker_f = load_font(SANS_BOLD, 22)
-    centred(draw, "THE WORLD IN A DAY", kicker_f, 30, RED)
-    date_f = load_font(SERIF_BOLD, 52)
-    centred(draw, "FRIDAY, 27 NOVEMBER 2026", date_f, 62, NAVY)
-    sub_f = load_font(SANS, 22)
-    centred(draw, "Six stories that shaped the day", sub_f, 128, BODY)
-    draw.line([MARGIN, HEADER_H - 12, SIZE - MARGIN, HEADER_H - 12],
-              fill=NAVY, width=3)
+def render():
+    picture = Image.new("RGB", (CANVAS, CANVAS), COLOURS["paper"])
+    pen = ImageDraw.Draw(picture)
 
+    pen.rectangle([0, 0, CANVAS, 10], fill=COLOURS["red"])
+    middle(pen, "THE WORLD IN A DAY", pick("sansb", 22), 30,
+           COLOURS["red"])
+    middle(pen, "FRIDAY, 27 NOVEMBER 2026", pick("serif", 52), 62,
+           COLOURS["navy"])
+    middle(pen, "Six stories that shaped the day", pick("sans", 22),
+           128, COLOURS["body"])
+    pen.line([EDGE, HEAD - 12, CANVAS - EDGE, HEAD - 12],
+             fill=COLOURS["navy"], width=3)
 
-def draw_card(draw, x, y, w, h, number, story):
-    kicker, accent, headline, summary = story
-    draw.rounded_rectangle([x, y, x + w, y + h], radius=12, fill=CARD_BG)
-    draw.rounded_rectangle([x, y, x + w, y + h], radius=12,
-                           outline=RULE, width=2)
-    draw.rectangle([x + 14, y, x + w - 14, y + 8], fill=accent)
-    pad = 22
-    inner_w = w - 2 * pad
-    kicker_f = load_font(SANS_BOLD, 19)
-    head_f = load_font(SERIF_BOLD, 28)
-    body_f = load_font(SANS, 20)
-    cy = y + 20
-    draw.text((x + pad, cy), f"{number}  ·  {kicker}",
-              font=kicker_f, fill=accent)
-    cy += 30
-    for line in wrap_text(draw, headline, head_f, inner_w):
-        draw.text((x + pad, cy), line, font=head_f, fill=INK)
-        cy += 33
-    cy += 6
-    for line in wrap_text(draw, summary, body_f, inner_w):
-        draw.text((x + pad, cy), line, font=body_f, fill=BODY)
-        cy += 25
+    grid_top = HEAD + 8
+    grid_bottom = CANVAS - FOOT - 16
+    cell_w = (CANVAS - 2 * EDGE - SPACE) // 2
+    cell_h = (grid_bottom - grid_top - 2 * SPACE) // 3
 
+    tag_face = pick("sansb", 19)
+    title_face = pick("serif", 28)
+    text_face = pick("sans", 20)
 
-def draw_footer(draw):
-    y = SIZE - FOOTER_H
-    draw.rectangle([0, y, SIZE, SIZE], fill=NAVY)
-    f = load_font(SANS, 20)
-    centred(draw, "Compiled from reports published on 27 November 2026",
-            f, y + 17, (225, 231, 242))
+    for index, card in enumerate(CARDS):
+        cx = EDGE + (index % 2) * (cell_w + SPACE)
+        cy = grid_top + (index // 2) * (cell_h + SPACE)
+        pen.rounded_rectangle([cx, cy, cx + cell_w, cy + cell_h],
+                              radius=12, fill=COLOURS["card"])
+        pen.rounded_rectangle([cx, cy, cx + cell_w, cy + cell_h],
+                              radius=12, outline=COLOURS["edge"],
+                              width=2)
+        pen.rectangle([cx + 14, cy, cx + cell_w - 14, cy + 8],
+                      fill=card["tone"])
+        text_x = cx + 22
+        text_w = cell_w - 44
+        cursor = cy + 20
+        pen.text((text_x, cursor),
+                 "%d  ·  %s" % (index + 1, card["tag"]),
+                 font=tag_face, fill=card["tone"])
+        cursor += 30
+        for row in split_lines(pen, card["title"], title_face, text_w):
+            pen.text((text_x, cursor), row, font=title_face,
+                     fill=COLOURS["ink"])
+            cursor += 33
+        cursor += 6
+        for row in split_lines(pen, card["text"], text_face, text_w):
+            pen.text((text_x, cursor), row, font=text_face,
+                     fill=COLOURS["body"])
+            cursor += 25
 
+    foot_y = CANVAS - FOOT
+    pen.rectangle([0, foot_y, CANVAS, CANVAS], fill=COLOURS["navy"])
+    middle(pen, "Compiled from reports published on 27 November 2026",
+           pick("sans", 20), foot_y + 17, COLOURS["pale"])
 
-def main():
-    img = Image.new("RGB", (SIZE, SIZE), PAPER)
-    draw = ImageDraw.Draw(img)
-    draw_header(draw)
-    top = HEADER_H + 8
-    bottom = SIZE - FOOTER_H - 16
-    card_w = (SIZE - 2 * MARGIN - GUTTER) // 2
-    card_h = (bottom - top - 2 * GUTTER) // 3
-    for i, story in enumerate(STORIES):
-        x = MARGIN + (i % 2) * (card_w + GUTTER)
-        y = top + (i // 2) * (card_h + GUTTER)
-        draw_card(draw, x, y, card_w, card_h, i + 1, story)
-    draw_footer(draw)
-    img.save(OUT, format="PNG", optimize=True)
-    print(f"wrote {OUT} ({OUT.stat().st_size} bytes)")
+    picture.save(DEST, format="PNG", optimize=True)
+    saved = os.path.getsize(DEST)
+    assert saved <= 1048576, "poster exceeds the 1 MiB cap"
+    print("poster saved:", DEST, saved, "bytes")
 
 
 if __name__ == "__main__":
-    main()
+    render()
